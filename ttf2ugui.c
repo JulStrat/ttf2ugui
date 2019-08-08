@@ -209,7 +209,7 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
     }
 
     fprintf(out, " // 0x%X '%c'\n", ch, ch);
-    fprintf(outPas, " (*$%X*)\n", ch);    
+    fprintf(outPas, " (*x%X*)\n", ch);    
   }
 
   fprintf(out, "};\n");
@@ -248,7 +248,7 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
           font->end_char,
           fontName);
 
-  fprintf(outPas, "FONT_%s: UG_FONT = {p: @fontd_%s; font_type: FONT_TYPE_%dBPP;char_width: %d; char_height: %d; start_char: %d; end_char: %d; widths: @fontWidths_%s );\n",
+  fprintf(outPas, "(*\nFONT_%s: UG_FONT = {p: @fontd_%s; font_type: FONT_TYPE_%dBPP;char_width: %d; char_height: %d; start_char: %d; end_char: %d; widths: @fontWidths_%s );\n*)\n",
           fontName,
           fontName,
           bitsPerPixel,
