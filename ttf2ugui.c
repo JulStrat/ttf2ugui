@@ -99,8 +99,10 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
   char fileNameBuf[80];
   const char* baseName;
   char outFileName[80];
+  char outPasFileName[80];  
   char* ptr;
   FILE* out;
+  FILE* outPas;  
 
 /*
  * Generate name for font by stripping path and suffix from filename.
@@ -119,15 +121,20 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
 
   sprintf(fontName, "%s_%dX%d", baseName, font->char_width, font->char_height);
   sprintf(outFileName, "%s_%dX%d.c", baseName, font->char_width, font->char_height);
-
+  sprintf(outPasFileName, "%s_%dX%d.pas", baseName, font->char_width, font->char_height);
 
   out = fopen(outFileName, "w");
   if (!out) {
-
     perror(outFileName);
     exit(2);
   }
 
+  outPas = fopen(outPasFileName, "w");
+  if (!outPas) {
+    perror(outPasFileName);
+    exit(2);
+  }
+  
 
   /*
    * First output character bitmaps.
@@ -146,58 +153,87 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
     }break;
   }
 
-
-
   fprintf(out, "// Converted from %s\n", fontFile);
+  fprintf(outPas, "(* Converted from %s\n", fontFile);  
+  
   fprintf(out, "//  --size %d\n", (int)fontSize);
-  if (dpi > 0)
+  fprintf(outPas, "  --size %d\n", (int)fontSize);
+  
+  if (dpi > 0) {
     fprintf(out, "//  --dpi %d\n", dpi);
+    fprintf(outPas, "  --dpi %d\n", dpi);    
+  }
   fprintf(out, "//  --bpp %d\n", (int)bitsPerPixel);
+  fprintf(outPas, "  --bpp %d\n", (int)bitsPerPixel);  
 
 
   fprintf(out, "// For copyright, see original font file.\n");
+  fprintf(outPas, " For copyright, see original font file. *)\n");  
+  
   fprintf(out, "\n#include \"ugui.h\"\n\n");
+
 
   fprintf(out, "static __UG_FONT_DATA unsigned char fontBits_%s[%d][%d] = {\n", fontName, font->end_char - font->start_char + 1, bytesPerChar);
 
+  fprintf(outPas, "\nconst\n");  
+  fprintf(outPas, "fontd_%s: array [0..Pred(%d), 0..Pred(%d)] of byte = (\n", fontName, font->end_char - font->start_char + 1, bytesPerChar);
+  
   current = 0;
   for (ch = font->start_char; ch <= font->end_char; ch++) {
 
     fprintf(out, "  {");
+    fprintf(outPas, "  (");
+    
     for (b = 0; b < bytesPerChar; b++) {
 
-      if (b)
+      if (b) {
         fprintf(out, ",");
+        fprintf(outPas, ",");        
+      }
 
       fprintf(out, "0x%02X", font->p[current]);
+      fprintf(outPas, "$%02X", font->p[current]);      
       ++current;
     }
 
     fprintf(out, " }");
-    if (ch <= font->end_char - 1)
+    fprintf(outPas, " )");
+    
+    if (ch <= font->end_char - 1) {
       fprintf(out, ",");
-    else
+      fprintf(outPas, ",");      
+    }
+    else {
       fprintf(out, " ");
+      fprintf(outPas, " ");      
+    }
 
     fprintf(out, " // 0x%X '%c'\n", ch, ch);
+    fprintf(outPas, " (*$%X*)\n", ch);    
   }
 
   fprintf(out, "};\n");
+  fprintf(outPas, ");\n");  
 
 /*
  * Next output character widths.
  */
   fprintf(out, "static const UG_U8 fontWidths_%s[] = {\n", fontName);
+  fprintf(outPas, "fontWidths_%s: array[0..Pred(%d)] of byte = (\n", 
+          fontName, font->end_char-font->start_char+1);  
 
   for (ch = font->start_char; ch <= font->end_char; ch++) {
-
-    if (ch != font->start_char)
+    if (ch != font->start_char) {
       fprintf(out, ",");
+      fprintf(outPas, ",");      
+    }
 
     fprintf(out, "%d", font->widths[ch - font->start_char]);
+    fprintf(outPas, "%d", font->widths[ch - font->start_char]);    
   }
 
   fprintf(out, "};\n");
+  fprintf(outPas, ");\n");  
 
 /*
  * Last, output UG_FONT structure.
@@ -212,16 +248,26 @@ static void dumpFont(const UG_FONT * font, const char* fontFile, float fontSize,
           font->end_char,
           fontName);
 
+  fprintf(outPas, "FONT_%s: UG_FONT = {p: @fontd_%s; font_type: FONT_TYPE_%dBPP;char_width: %d; char_height: %d; start_char: %d; end_char: %d; widths: @fontWidths_%s );\n",
+          fontName,
+          fontName,
+          bitsPerPixel,
+          font->char_width,
+          font->char_height,
+          font->start_char,
+          font->end_char,
+          fontName);
+  
+  
   fclose(out);
+  fclose(outPas);   
 
   sprintf(outFileName, "%s_%dX%d.h", baseName, font->char_width, font->char_height);
   out = fopen(outFileName, "w");
   if (!out) {
-
     perror(outFileName);
     exit(2);
   }
-
 /*
  * Output extern declaration to header file.
  */
